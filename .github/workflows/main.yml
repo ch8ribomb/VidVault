@@ -1,5 +1,61 @@
+name: Build VidVault
 
-from vidvault.gui import main
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  workflow_dispatch:
 
-if __name__ == "__main__":
-    main()
+permissions:
+  contents: write
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Check required files
+        shell: bash
+        run: |
+          for f in main.py requirements.txt assets/Video_Library.ico vidvault/gui.py; do
+            if [ ! -f "$f" ]; then
+              echo "::error::找不到 $f（這些檔案必須放在儲存庫的根目錄，不可多包一層資料夾）"
+              exit 1
+            fi
+          done
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt pyinstaller
+
+      - name: Syntax check
+        run: python -m compileall -q vidvault main.py
+
+      - name: Build exe
+        run: >
+          pyinstaller --noconfirm --onefile --windowed --name VidVault
+          --icon assets/Video_Library.ico
+          --add-data "assets/Video_Library.ico;assets"
+          --hidden-import pynput.keyboard._win32
+          --hidden-import pynput.mouse._win32
+          main.py
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: VidVault-windows
+          path: dist/VidVault.exe
+
+      - name: Publish release (tag v* only)
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/VidVault.exe
