@@ -1,2 +1,5 @@
-requests
-Pillow
+requests>=2.31
+beautifulsoup4>=4.12
+pynput>=1.7.6
+pyperclip>=1.8.2
+Pillow>=10.0
